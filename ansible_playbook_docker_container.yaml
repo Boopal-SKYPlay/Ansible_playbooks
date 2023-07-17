@@ -1,0 +1,53 @@
+- hosts: "Managed_Node1"
+  task:
+  - name: Configuring Docker Repository
+    yum_repository:
+      name: Docker
+      description:  "Docker Repo"
+      baseurl: "https://download.docker.com/linux/centos/docker-ce.repo"
+      gpgcheck: no
+    register: x
+  - name: Checking Configuration Status
+    debug:
+      var: x.failed
+  - name: Installed Docker
+    package:
+      name: "docker-ce-18.06.3.ce-3.e17.x86_64"
+      state: present
+    regidter: y
+  - name: starting Docker Daemon
+    service:
+      name: docker
+      state: started
+      enabled: yes
+    when: y.failed==false
+  - name: Pull a Docker Image
+    docker_image:
+      name: httpd
+      tag: latest
+      source: pull
+    register: z
+  - name: Checking Pull Status
+    debug:
+      var: z
+  - name: Creating a Persistent Volume Dir
+    file:
+      path: "/root/pv"
+      state: directory
+  - name: Copy the HTML Code in the Directory
+    copy:
+      src: "/root/desktop/index.html"
+      des: "/root/pv"
+  - name: Launching an HTTPD Container
+    when: z.failed==false
+    docker_container:
+      name: apache-server
+      image: httpd
+      state: started
+      exposed_port:
+        - "80"
+      ports:
+        - "8888:80"
+      volumes:
+        - /root/pv:/usr/local/apache2/htdocs
+        
